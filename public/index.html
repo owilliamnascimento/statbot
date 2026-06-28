@@ -1,7 +1,589 @@
-    addBotMsg(reply || '⚠<fe0f> Resposta vazia.');
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StatBot — Análise Estatística em R</title>
+<style>
+  :root {
+    --blue: #1B4F8A;
+    --blue-light: #D6E4F0;
+    --blue-mid: #2E86C1;
+    --green: #1E8449;
+    --green-light: #D5F5E3;
+    --gray-dark: #1A1A1A;
+    --gray-mid: #555555;
+    --gray-light: #F4F6F7;
+    --gray-border: #DDDDDD;
+    --white: #FFFFFF;
+    --success: #27AE60;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #F0F4F8;
+    min-height: 100vh;
+    color: var(--gray-dark);
+  }
+
+  /* NAV */
+  nav {
+    background: var(--blue);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-brand { display: flex; align-items: center; gap: 10px; }
+  .nav-logo {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .nav-title { color: white; font-size: 15px; font-weight: 600; }
+  .nav-sub { color: rgba(255,255,255,0.6); font-size: 12px; }
+  .nav-badge {
+    background: var(--success); color: white;
+    font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 99px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .nav-badge::before {
+    content: ''; width: 6px; height: 6px;
+    background: white; border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* LAYOUT */
+  .container {
+    max-width: 760px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  /* CARD */
+  .card {
+    background: var(--white);
+    border-radius: 14px;
+    border: 1px solid var(--gray-border);
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  .card-header {
+    background: var(--blue);
+    padding: 1.25rem 1.5rem;
+    color: white;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .card-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(255,255,255,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .card-header h1 { font-size: 16px; font-weight: 600; }
+  .card-header p { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+  .card-body { padding: 1.5rem; }
+
+  /* LANG TOGGLE */
+  .lang-toggle {
+    display: flex; gap: 6px; margin-bottom: 1.25rem;
+    background: var(--gray-light);
+    border-radius: 8px; padding: 4px;
+  }
+  .lang-btn {
+    flex: 1; padding: 7px; font-size: 13px; font-weight: 500;
+    border: none; border-radius: 6px; cursor: pointer;
+    background: transparent; color: var(--gray-mid);
+    transition: all 0.15s;
+  }
+  .lang-btn.active {
+    background: var(--white); color: var(--blue);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  }
+
+  /* STEPS */
+  .steps {
+    display: flex; gap: 0; margin-bottom: 1.5rem;
+    border: 1px solid var(--gray-border); border-radius: 8px;
+    overflow: hidden;
+  }
+  .step {
+    flex: 1; padding: 10px 8px; text-align: center;
+    font-size: 12px; color: var(--gray-mid);
+    border-right: 1px solid var(--gray-border);
+    background: var(--gray-light);
+  }
+  .step:last-child { border-right: none; }
+  .step.active { background: var(--blue-light); color: var(--blue); font-weight: 600; }
+  .step.done { background: var(--green-light); color: var(--green); }
+  .step-num { font-size: 16px; display: block; margin-bottom: 2px; }
+
+  /* UPLOAD */
+  .drop-zone {
+    border: 2px dashed var(--gray-border);
+    border-radius: 10px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--gray-light);
+  }
+  .drop-zone:hover, .drop-zone.drag {
+    border-color: var(--blue-mid);
+    background: var(--blue-light);
+  }
+  .drop-icon { font-size: 40px; margin-bottom: 10px; }
+  .drop-zone h3 { font-size: 15px; font-weight: 600; color: var(--gray-dark); margin-bottom: 6px; }
+  .drop-zone p { font-size: 13px; color: var(--gray-mid); }
+  .drop-zone span { font-size: 12px; color: var(--gray-mid); display: block; margin-top: 6px; }
+  #file-input { display: none; }
+
+  .file-pill {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--green-light);
+    border: 1px solid #A9DFBF;
+    border-radius: 8px; padding: 10px 14px;
+    margin-bottom: 1.25rem; font-size: 13px; font-weight: 500;
+    color: var(--green);
+  }
+  .file-pill-icon { font-size: 20px; }
+
+  /* ANALYSIS OPTIONS */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .opt-btn {
+    border: 1.5px solid var(--gray-border);
+    border-radius: 10px; padding: 14px;
+    background: var(--white); cursor: pointer;
+    text-align: left; transition: all 0.15s;
+  }
+  .opt-btn:hover {
+    border-color: var(--blue-mid);
+    background: var(--blue-light);
+  }
+  .opt-icon { font-size: 22px; margin-bottom: 8px; display: block; }
+  .opt-btn strong { display: block; font-size: 13px; font-weight: 600; color: var(--gray-dark); margin-bottom: 3px; }
+  .opt-btn small { font-size: 12px; color: var(--gray-mid); }
+
+  /* CHAT */
+  .chat-area {
+    border: 1px solid var(--gray-border);
+    border-radius: 10px;
+    min-height: 380px;
+    max-height: 480px;
+    overflow-y: auto;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--gray-light);
+  }
+  .msg { display: flex; gap: 10px; align-items: flex-start; }
+  .msg.user { flex-direction: row-reverse; }
+  .msg-av {
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; background: var(--blue); color: white;
+  }
+  .msg.user .msg-av { background: var(--gray-border); color: var(--gray-mid); }
+  .bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .bot .bubble {
+    background: var(--white);
+    border: 1px solid var(--gray-border);
+    border-top-left-radius: 3px;
+    color: var(--gray-dark);
+  }
+  .user .bubble {
+    background: var(--blue);
+    color: white;
+    border-top-right-radius: 3px;
+  }
+  .bubble strong { font-weight: 600; }
+  .code-block {
+    background: #1E2A3A;
+    color: #A8D8A8;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    margin: 8px 0;
+    overflow-x: auto;
+  }
+  .result-block {
+    background: var(--green-light);
+    border-left: 3px solid var(--green);
+    border-radius: 0 6px 6px 0;
+    padding: 8px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    margin: 8px 0;
+    color: var(--gray-dark);
+  }
+  .typing-dots { display: flex; gap: 5px; align-items: center; padding: 6px 0; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-mid); animation: blink 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.25} 40%{opacity:1} }
+
+  /* INPUT ROW */
+  .input-row { display: flex; gap: 8px; }
+  .input-row input {
+    flex: 1; padding: 10px 14px; font-size: 13px;
+    border: 1.5px solid var(--gray-border); border-radius: 8px;
+    outline: none; transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .input-row input:focus { border-color: var(--blue-mid); }
+  .send-btn {
+    background: var(--blue); color: white;
+    border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .send-btn:hover { background: var(--blue-mid); }
+  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* RESTART */
+  .restart-btn {
+    background: none; border: 1px solid var(--gray-border);
+    border-radius: 8px; padding: 8px 14px;
+    font-size: 13px; color: var(--gray-mid);
+    cursor: pointer; margin-top: 10px;
+    transition: all 0.15s; display: block; width: 100%;
+    text-align: center;
+  }
+  .restart-btn:hover { background: var(--gray-light); }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    font-size: 12px;
+    color: var(--gray-mid);
+  }
+  footer a { color: var(--blue); text-decoration: none; }
+  footer strong { color: var(--gray-dark); }
+
+  /* HIDDEN */
+  .hidden { display: none !important; }
+
+  @media (max-width: 500px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .container { padding: 0 0.5rem; }
+    .card-body { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">📊</div>
+    <div>
+      <div class="nav-title">StatBot</div>
+      <div class="nav-sub">Análise Estatística em R</div>
+    </div>
+  </div>
+  <div class="nav-badge">Online</div>
+</nav>
+
+<div class="container">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🤖</div>
+      <div>
+        <h1 id="hdr-title">Assistente de Análise Estatística</h1>
+        <p id="hdr-sub">Carrega o teu ficheiro e recebe análise completa com código R</p>
+      </div>
+    </div>
+    <div class="card-body">
+
+      <!-- LANG -->
+      <div class="lang-toggle">
+        <button class="lang-btn active" onclick="setLang('pt')" id="btn-pt">🇵🇹 Português</button>
+        <button class="lang-btn" onclick="setLang('en')" id="btn-en">🇬🇧 English</button>
+      </div>
+
+      <!-- STEPS -->
+      <div class="steps">
+        <div class="step active" id="s1"><span class="step-num">📁</span><span id="s1-lbl">Ficheiro</span></div>
+        <div class="step" id="s2"><span class="step-num">📊</span><span id="s2-lbl">Análise</span></div>
+        <div class="step" id="s3"><span class="step-num">💬</span><span id="s3-lbl">Resultados</span></div>
+      </div>
+
+      <!-- STEP 1: UPLOAD -->
+      <div id="step-upload">
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+          <div class="drop-icon">📂</div>
+          <h3 id="dz-title">Arrasta o ficheiro ou clica para selecionar</h3>
+          <p id="dz-sub">CSV ou Excel com os teus dados</p>
+          <span id="dz-hint">.csv · .xlsx · .xls</span>
+        </div>
+        <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
+      </div>
+
+      <!-- STEP 2: OPTIONS -->
+      <div id="step-options" class="hidden">
+        <div class="file-pill" id="file-pill">
+          <span class="file-pill-icon">✅</span>
+          <span id="file-name-lbl">ficheiro.csv</span>
+        </div>
+        <p style="font-size:13px;color:var(--gray-mid);margin-bottom:14px;" id="opt-label">Que análise pretendes realizar?</p>
+        <div class="options-grid">
+          <button class="opt-btn" onclick="startChat('desc')">
+            <span class="opt-icon">📋</span>
+            <strong id="o1t">Estatística descritiva</strong>
+            <small id="o1s">Média, mediana, desvio padrão, gráficos</small>
+          </button>
+          <button class="opt-btn" onclick="startChat('hyp')">
+            <span class="opt-icon">🔬</span>
+            <strong id="o2t">Testes de hipóteses</strong>
+            <small id="o2s">t-test, ANOVA, qui-quadrado</small>
+          </button>
+          <button class="opt-btn" onclick="startChat('reg')">
+            <span class="opt-icon">📈</span>
+            <strong id="o3t">Regressão linear</strong>
+            <small id="o3s">Correlação, modelo, R², interpretação</small>
+          </button>
+          <button class="opt-btn" onclick="startChat('full')">
+            <span class="opt-icon">🧪</span>
+            <strong id="o4t">Análise completa</strong>
+            <small id="o4s">Tudo acima num único relatório</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 3: CHAT -->
+      <div id="step-chat" class="hidden">
+        <div class="chat-area" id="chat-area"></div>
+        <div class="input-row">
+          <input type="text" id="user-input" placeholder="Faz uma pergunta sobre os dados..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendMsg()">
+          <button class="send-btn" id="send-btn" onclick="sendMsg()">Enviar ➤</button>
+        </div>
+        <button class="restart-btn" onclick="restart()" id="restart-lbl">↩ Nova análise</button>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    Desenvolvido por <strong>William T. Nascimento</strong> · Análise Estatística em R ·
+    <a href="mailto:william@statbot.com">Contacto</a>
+  </footer>
+</div>
+
+<script>
+const ANTHROPIC_API_KEY = 'YOUR_API_KEY_HERE';
+
+let lang = 'pt';
+let fileName = '';
+let fileData = '';
+let chatHistory = [];
+let busy = false;
+
+const T = {
+  pt: {
+    hdrTitle: 'Assistente de Análise Estatística',
+    hdrSub: 'Carrega o teu ficheiro e recebe análise completa com código R',
+    s1: 'Ficheiro', s2: 'Análise', s3: 'Resultados',
+    dzTitle: 'Arrasta o ficheiro ou clica para selecionar',
+    dzSub: 'CSV ou Excel com os teus dados',
+    dzHint: '.csv · .xlsx · .xls',
+    optLabel: 'Que análise pretendes realizar?',
+    o1t:'Estatística descritiva', o1s:'Média, mediana, desvio padrão, gráficos',
+    o2t:'Testes de hipóteses', o2s:'t-test, ANOVA, qui-quadrado',
+    o3t:'Regressão linear', o3s:'Correlação, modelo, R², interpretação',
+    o4t:'Análise completa', o4s:'Tudo acima num único relatório',
+    placeholder: 'Faz uma pergunta sobre os dados...',
+    send: 'Enviar ➤',
+    restart: '↩ Nova análise',
+    welcome: n => `✅ Ficheiro **${n}** carregado com sucesso!\n\nVou analisar os teus dados agora. Um momento...`,
+    thinking: 'A analisar...',
+    sys: 'És um assistente especializado em análise estatística com R. Responde sempre em português. Para cada análise apresenta: (1) resumo dos dados, (2) resultados com valores concretos, (3) código R comentado entre ``` e ```, (4) interpretação clara. Usa **negrito** para destacar resultados-chave.',
+    typeMap: { desc:'estatística descritiva completa (medidas de tendência central, dispersão, tabela de frequências e sugestão de gráficos)', hyp:'testes de hipóteses adequados (verifica normalidade, aplica t-test, ANOVA ou qui-quadrado conforme os dados)', reg:'análise de regressão linear (correlação de Pearson, modelo lm(), R², coeficientes e interpretação)', full:'análise completa: estatística descritiva, testes de hipóteses e regressão linear' },
+  },
+  en: {
+    hdrTitle: 'Statistical Analysis Assistant',
+    hdrSub: 'Upload your file and get a full analysis with R code',
+    s1: 'File', s2: 'Analysis', s3: 'Results',
+    dzTitle: 'Drag your file here or click to select',
+    dzSub: 'CSV or Excel with your data',
+    dzHint: '.csv · .xlsx · .xls',
+    optLabel: 'What analysis do you need?',
+    o1t:'Descriptive statistics', o1s:'Mean, median, std dev, charts',
+    o2t:'Hypothesis testing', o2s:'t-test, ANOVA, chi-square',
+    o3t:'Linear regression', o3s:'Correlation, model, R², interpretation',
+    o4t:'Full analysis', o4s:'All of the above in one report',
+    placeholder: 'Ask a question about your data...',
+    send: 'Send ➤',
+    restart: '↩ New analysis',
+    welcome: n => `✅ File **${n}** loaded successfully!\n\nAnalysing your data now. One moment...`,
+    thinking: 'Analysing...',
+    sys: 'You are a statistical analysis assistant specializing in R. Always reply in English. For each analysis provide: (1) data summary, (2) results with concrete values, (3) commented R code between ``` and ```, (4) plain-language interpretation. Use **bold** for key results.',
+    typeMap: { desc:'complete descriptive statistics (central tendency, dispersion, frequency table, chart suggestions)', hyp:'appropriate hypothesis tests (check normality, apply t-test, ANOVA, or chi-square)', reg:'linear regression analysis (Pearson correlation, lm() model, R², coefficients, interpretation)', full:'full analysis: descriptive statistics, hypothesis tests, and linear regression' },
+  }
+};
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('btn-pt').classList.toggle('active', l==='pt');
+  document.getElementById('btn-en').classList.toggle('active', l==='en');
+  const t = T[l];
+  document.getElementById('hdr-title').textContent = t.hdrTitle;
+  document.getElementById('hdr-sub').textContent = t.hdrSub;
+  document.getElementById('s1-lbl').textContent = t.s1;
+  document.getElementById('s2-lbl').textContent = t.s2;
+  document.getElementById('s3-lbl').textContent = t.s3;
+  document.getElementById('dz-title').textContent = t.dzTitle;
+  document.getElementById('dz-sub').textContent = t.dzSub;
+  document.getElementById('dz-hint').textContent = t.dzHint;
+  document.getElementById('opt-label').textContent = t.optLabel;
+  document.getElementById('o1t').textContent = t.o1t; document.getElementById('o1s').textContent = t.o1s;
+  document.getElementById('o2t').textContent = t.o2t; document.getElementById('o2s').textContent = t.o2s;
+  document.getElementById('o3t').textContent = t.o3t; document.getElementById('o3s').textContent = t.o3s;
+  document.getElementById('o4t').textContent = t.o4t; document.getElementById('o4s').textContent = t.o4s;
+  document.getElementById('user-input').placeholder = t.placeholder;
+  document.getElementById('send-btn').textContent = t.send;
+  document.getElementById('restart-lbl').textContent = t.restart;
+}
+
+// Upload
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); const f = e.dataTransfer.files[0]; if(f) handleFile(f); });
+document.getElementById('file-input').addEventListener('change', e => { const f = e.target.files[0]; if(f) handleFile(f); });
+
+function handleFile(file) {
+  fileName = file.name;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    fileData = ev.target.result;
+    document.getElementById('file-name-lbl').textContent = fileName;
+    setStep(2);
+    document.getElementById('step-upload').classList.add('hidden');
+    document.getElementById('step-options').classList.remove('hidden');
+  };
+  reader.readAsText(file);
+}
+
+function setStep(n) {
+  ['s1','s2','s3'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    el.className = 'step' + (i+1 < n ? ' done' : i+1 === n ? ' active' : '');
+  });
+}
+
+function startChat(type) {
+  setStep(3);
+  document.getElementById('step-options').classList.add('hidden');
+  document.getElementById('step-chat').classList.remove('hidden');
+  chatHistory = [];
+  document.getElementById('chat-area').innerHTML = '';
+  const t = T[lang];
+  const preview = fileData.split('\n').slice(0,25).join('\n');
+  const prompt = lang === 'pt'
+    ? `O utilizador carregou um ficheiro chamado "${fileName}". Primeiras linhas:\n\n${preview}\n\nRealiza uma ${t.typeMap[type]}.`
+    : `The user uploaded a file named "${fileName}". First rows:\n\n${preview}\n\nPerform a ${t.typeMap[type]}.`;
+  addBotMsg(t.welcome(fileName));
+  callClaude(prompt);
+}
+
+function addBotMsg(raw) {
+  const area = document.getElementById('chat-area');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.innerHTML = `<div class="msg-av">🤖</div><div class="bubble">${formatMsg(raw)}</div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function addUserMsg(text) {
+  const area = document.getElementById('chat-area');
+  const div = document.createElement('div');
+  div.className = 'msg user';
+  div.innerHTML = `<div class="msg-av">👤</div><div class="bubble">${escHtml(text)}</div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function addTyping() {
+  const area = document.getElementById('chat-area');
+  const div = document.createElement('div');
+  div.className = 'msg bot'; div.id = 'typing-msg';
+  div.innerHTML = `<div class="msg-av">🤖</div><div class="bubble"><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function removeTyping() { const t = document.getElementById('typing-msg'); if(t) t.remove(); }
+
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function formatMsg(raw) {
+  let out = escHtml(raw);
+  out = out.replace(/```([\s\S]*?)```/g, (_, code) => `<div class="code-block">${code.trim()}</div>`);
+  out = out.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  out = out.replace(/\n/g, '<br>');
+  return out;
+}
+
+async function callClaude(userMsg) {
+  if(busy) return;
+  busy = true;
+  document.getElementById('send-btn').disabled = true;
+  addTyping();
+  chatHistory.push({ role: 'user', content: userMsg });
+  try {
+    const res = await fetch('/api/claude', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        system: T[lang].sys,
+        messages: chatHistory
+      })
+    });
+    const data = await res.json();
+    console.log('API response:', JSON.stringify(data));
+    let reply = '';
+    if (data.content && Array.isArray(data.content)) {
+      reply = data.content.map(b => b.text || '').join('');
+    } else if (data.error) {
+      reply = '⚠️ Erro da API: ' + (data.error.message || JSON.stringify(data.error));
+    } else {
+      reply = '⚠️ Resposta inesperada: ' + JSON.stringify(data);
+    }
+    chatHistory.push({ role: 'assistant', content: reply });
+    removeTyping();
+    addBotMsg(reply || '⚠️ Resposta vazia.');
   } catch(e) {
     removeTyping();
-    addBotMsg(lang==='pt' ? '⚠<fe0f> Erro ao contactar o servidor. Verifica a tua ligação.' : '⚠<fe0f> Error contacting server. Check your connection.');
+    addBotMsg(lang==='pt' ? '⚠️ Erro ao contactar o servidor. Verifica a tua ligação.' : '⚠️ Error contacting server. Check your connection.');
   }
   busy = false;
   document.getElementById('send-btn').disabled = false;
@@ -33,4 +615,3 @@ function restart() {
 </script>
 </body>
 </html>
-
